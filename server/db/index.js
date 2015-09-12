@@ -8,7 +8,6 @@ var mysql = require('mysql');
 
 exports.allMessages = function(callback){
   var messages;
-  console.log('In database method');
   dbConnection = mysql.createConnection({
         user: "root",
         password: "",
@@ -25,13 +24,14 @@ exports.allMessages = function(callback){
 };
 
 exports.addUser = function(user){
+  console.log('In database addUser: ', user.username);
   dbConnection = mysql.createConnection({
         user: "root",
         password: "",
         database: "chat"
   });
   dbConnection.connect();
-  var userBody = JSON.parse(user).username;
+  var userBody = user.username;
   dbConnection.query('INSERT INTO Users values (\'' + userBody + '\', ' + null + ')', function(err, rows){
     if (err) { throw err }
     console.log('Added new user to database!');
@@ -39,26 +39,62 @@ exports.addUser = function(user){
   dbConnection.end();
 };
 
+
 exports.addMessage = function(message){
+  console.log('In database addMessage: ', message);
   dbConnection = mysql.createConnection({
         user: "root",
         password: "",
         database: "chat"
   });
-  dbConnection.connect();
-  dbConnection.query('SELECT U_ID FROM Users WHERE username=\'' + JSON.parse(message)['username'] + '\'', function(err, U_ID){
-    if (err) { throw err };
-    /* If U_ID is null -> 'INSERT INTO Users message['username'] */
-    dbConnection.query('SELECT R_ID FROM Rooms WHERE roomname=\'' + JSON.parse(message)['roomname'] + '\'', function(err, R_ID){
-      /* If R_ID is null -> 'INSERT INTO Rooms message['roomname'] */
+
+  var getR_ID = function(R_ID, callback){
+    dbConnection.query('SELECT R_ID FROM Rooms WHERE roomname=\'' + message.roomname + '\'', function(err, R_ID){
       if (err) { throw err };
-      console.log(JSON.stringify(JSON.parse(message).message));
-      var messageBody = JSON.stringify(JSON.parse(message).message);
-      dbConnection.query('INSERT INTO Messages values (' + U_ID[0]['U_ID'] + ', \'' + messageBody + '\', ' + R_ID[0]['R_ID'] + ', ' + null + ')', function(err, rows){
-        if (err) { throw err }
-        console.log('Added new message to database, ', rows);
-        dbConnection.end();
-      });
+      if (R_ID.length !== 0) {
+        callback(R_ID);
+      } else {
+        dbConnection.query('INSERT INTO Rooms values (' + '\'' + message.roomname + '\' ,' + null + ')', function(err, result){
+          getR_ID(callback);  
+        });
+      }
+    });
+  };
+
+  var getU_ID = function(callback){
+    dbConnection.query('SELECT U_ID FROM Users WHERE username=\'' + message.username + '\'', function(err, U_ID){
+      if (err) { throw err };
+      if (U_ID.length !== 0) {
+        callback(U_ID);
+      } else {
+        dbConnection.query('INSERT INTO Users values (' + '\'' + message.username + '\' ,' + null + ')', function(err, result){
+          getU_ID(callback);  
+        });
+      }
+    });
+  };
+
+  var insertMessage = function(U_ID, R_ID, passedMessage){
+    console.log('Message Body in insertMessage :', passedMessage.message);
+    var messageBody = passedMessage.message;
+    dbConnection.query('INSERT INTO Messages values (' + U_ID[0]['U_ID'] + ', \'' + messageBody + '\', ' + R_ID[0]['R_ID'] + ', ' + null + ')', function(err, rows){
+      if (err) { throw err }
+      console.log('Added new passedMessage to database, ', rows);
+
+      dbConnection.end();
+    });
+  };
+
+  dbConnection.connect();
+
+  /* Chain callbacks to post new message */
+  getU_ID(function(U_ID) {
+    console.log('U_ID from getU_ID:', U_ID);
+    getR_ID(U_ID, function(R_ID){
+      console.log('R_ID from getR_ID:',R_ID);
+      console.log('Message to pass to insertMessage', message);
+      insertMessage(U_ID, R_ID, message);
     });
   });
+
 };

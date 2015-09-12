@@ -10,14 +10,8 @@ module.exports = {
       res.end('Get from database');
     }, // a function which handles a get request for all messages
     post: function (req, res) {
-      var data;
-      req.on('data', function(reqData){
-        data = reqData;
-      });
-      req.on('end', function(){
-        console.log('In controller messages post:', data.toString());
-        models.messages.post(data.toString());
-      });
+      
+      models.messages.post(req.body);
       res.writeHead(201);
       res.end('Post successful');
     } // a function which handles posting a message to the database
@@ -30,14 +24,7 @@ module.exports = {
       res.end();
     },
     post: function (req, res) {
-      var data;
-      req.on('data', function(reqData){
-        data = reqData;
-      });
-      req.on('end', function(){
-        console.log('In controller users post:', data.toString());
-        models.users.post(data.toString());
-      });
+      models.users.post(req.body);
       res.writeHead(201);
       res.end('Post successful');
 
