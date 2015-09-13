@@ -1,34 +1,47 @@
-var models = require('../models');
+var db = require('../db');
 
 module.exports = {
   messages: {
     get: function (req, res) {
-      res.writeHead(200);
-      models.messages.get(function(messages) {
-        console.log("In controller:", messages);
-      });
-      res.end('Get from database');
-    }, // a function which handles a get request for all messages
+      db.Messages.findAll({include: [db.User]})
+        .then(function(message){
+          res.json(message);
+        });
+    },
     post: function (req, res) {
-      
-      models.messages.post(req.body);
-      res.writeHead(201);
-      res.end('Post successful');
-    } // a function which handles posting a message to the database
+      db.User.findOrCreate({where: {username: req.body.username}})
+        .then(function(user){
+          db.Room.findOrCreate({where: {roomname: req.body.roomname}})
+            .then(function(room){
+              db.Message.create({
+                userid: user.id,
+                text: req.body.message,
+                roomid: room.id
+              }).then(function(message){
+                res.sendStatus(201);
+              });
+            });
+        });
+    }
+
   },
 
   users: {
-    // Ditto as above
     get: function (req, res) {
-      res.writeHead(200);
-      res.end();
+      db.Users.findAll()
+        .then(function(user){
+          res.json(user);
+        });
     },
-    post: function (req, res) {
-      models.users.post(req.body);
-      res.writeHead(201);
-      res.end('Post successful');
 
+    post: function (req, res) {
+      db.User.create({
+        username: req.body.username
+      }).then(function(user){
+          res.sendStatus(201);
+      });
     }
   }
+
 };
 
